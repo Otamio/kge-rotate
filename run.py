@@ -24,3 +24,4 @@ if __name__ == "__main__":
                        f"--data_path data/{dataset} --model {mapping[model]} -n 256 -b 1024 -d 1000 -g 24.0 -a 1.0 -adv " \
                        f"-lr 0.0001 --max_steps 150000 --valid_steps 1500 -save out/{dataset}_{model} " \
                        "--test_batch_size 16", shell=True)
+
