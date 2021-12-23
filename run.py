@@ -9,7 +9,7 @@ mapping = {
 
 if __name__ == "__main__":
     model = sys.argv[1].lower()
-    dataset = sys.argv[2].lower()
+    dataset = sys.argv[2]
     if model == "rotate":
         subprocess.run(f"python codes/create_mapping.py data/{dataset} && " \
                        "CUDA_VISIBLE_DEVICES=0 python -u codes/run.py --do_train --cuda --do_valid --do_test " \
