@@ -37,7 +37,7 @@ class Gate(nn.Module):
 
     def forward(self, x_ent, x_lit):
         x = torch.cat([x_ent, x_lit], 1)
-        g_embedded = F.tanh(self.g(x))
+        g_embedded = torch.tanh(self.g(x))
         gate = self.gate_activation(self.g1(x_ent) + self.g2(x_lit) + self.gate_bias)
         output = (1-gate) * x_ent + gate * g_embedded
 
