@@ -218,7 +218,7 @@ class KGEModel(nn.Module):
         return score
 
     def TransE_Gate(self, head, relation, tail, mode):
-        return self.TransE(head, relation, tail, mode, None, None)
+        return self.TransE(head, relation, tail, mode)
 
     def DistMult(self, head, relation, tail, mode):
         if mode == 'head-batch':
@@ -277,7 +277,7 @@ class KGEModel(nn.Module):
         return score
 
     def RotatE_Gate(self, head, relation, tail, mode):
-        return self.RotatE(head, relation, tail, mode, None, None)
+        return self.RotatE(head, relation, tail, mode)
 
     def pRotatE(self, head, relation, tail, mode):
         pi = 3.14159262358979323846
