@@ -204,7 +204,7 @@ class KGEModel(nn.Module):
         return score
 
     def enrich_embedding(self):
-        if self.numerical_literals:
+        if self.numerical_literals is not None:
             self.entity_embedding_enriched = self.embed_num_lit(self.entity_embedding,
                                                                 self.numerical_literals)
 
