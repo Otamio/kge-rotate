@@ -21,7 +21,8 @@ from dataloader import TestDataset
 
 class KGEModel(nn.Module):
     def __init__(self, model_name, nentity, nrelation, hidden_dim, gamma,
-                 double_entity_embedding=False, double_relation_embedding=False):
+                 double_entity_embedding=False, double_relation_embedding=False,
+                 numerical_literals=None):
         super(KGEModel, self).__init__()
         self.model_name = model_name
         self.nentity = nentity
@@ -55,6 +56,12 @@ class KGEModel(nn.Module):
             a=-self.embedding_range.item(),
             b=self.embedding_range.item()
         )
+
+        # Load numeric literals if necessary
+        if numerical_literals:
+            self.numerical_literals = torch.autograd.Variable(torch.from_numpy(numerical_literals))
+            self.n_num_lit = self.numerical_literals.size(1)
+            self.emb_num_lit = torch.nn.Linear(self.emb_dim + self.n_num_lit, self.emb_dim)
 
         if model_name == 'pRotatE':
             self.modulus = nn.Parameter(torch.Tensor([[0.5 * self.embedding_range.item()]]))
@@ -427,4 +434,3 @@ class KGEModel(nn.Module):
                 metrics[metric] = sum([log[metric] for log in logs]) / len(logs)
 
         return metrics
-    

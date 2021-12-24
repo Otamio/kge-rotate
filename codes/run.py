@@ -68,6 +68,7 @@ def parse_args(args=None):
 
     parser.add_argument('--nentity', type=int, default=0, help='DO NOT MANUALLY SET')
     parser.add_argument('--nrelation', type=int, default=0, help='DO NOT MANUALLY SET')
+    parser.add_argument('--use_literal', action='store_true')
 
     return parser.parse_args(args)
 
@@ -194,6 +195,14 @@ def main(args):
             rid, relation = line.strip().split('\t')
             relation2id[relation] = int(rid)
 
+    if args.use_literal:
+        numerical_literals = np.load(f'{args.data_path}/numerical_literals.npy', allow_pickle=True)
+        # Normalize numerical literals
+        max_lit, min_lit = np.max(numerical_literals, axis=0), np.min(numerical_literals, axis=0)
+        numerical_literals = (numerical_literals - min_lit) / (max_lit - min_lit + 1e-8)
+    else:
+        numerical_literals = None
+
     # Read regions for Countries S* datasets
     if args.countries:
         regions = list()
@@ -231,7 +240,8 @@ def main(args):
         hidden_dim=args.hidden_dim,
         gamma=args.gamma,
         double_entity_embedding=args.double_entity_embedding,
-        double_relation_embedding=args.double_relation_embedding
+        double_relation_embedding=args.double_relation_embedding,
+        numerical_literals=numerical_literals
     )
 
     logging.info('Model Parameter Configuration:')
