@@ -252,7 +252,7 @@ def main(args):
         kge_model = kge_model.cuda()
         if kge_model.numerical_literals is not None:
             kge_model.numerical_literals = kge_model.numerical_literals.cuda()
-            kge_model.emb_num_lit = kge_model.emb_num_lit.cuda()
+            kge_model.gate = kge_model.gate.cuda()
 
     if args.do_train:
         # Set training dataloader iterator
