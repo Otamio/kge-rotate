@@ -205,8 +205,8 @@ class KGEModel(nn.Module):
 
     def enrich_embedding(self):
         if self.numerical_literals is not None:
-            self.entity_embedding_enriched = self.embed_num_lit(self.entity_embedding,
-                                                                self.numerical_literals)
+            self.entity_embedding_enriched = self.gate(self.entity_embedding,
+                                                       self.numerical_literals)
 
     def TransE(self, head, relation, tail, mode):
         if mode == 'head-batch':
