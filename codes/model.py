@@ -58,7 +58,7 @@ class KGEModel(nn.Module):
         )
 
         # Load numeric literals if necessary
-        if numerical_literals:
+        if numerical_literals is not None:
             self.numerical_literals = torch.autograd.Variable(torch.from_numpy(numerical_literals))
             self.n_num_lit = self.numerical_literals.size(1)
             self.emb_num_lit = torch.nn.Linear(self.emb_dim + self.n_num_lit, self.emb_dim)
