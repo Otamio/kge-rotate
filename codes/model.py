@@ -86,8 +86,8 @@ class KGEModel(nn.Module):
         if numerical_literals is not None:
             self.numerical_literals = torch.autograd.Variable(torch.from_numpy(numerical_literals))
             self.n_num_lit = self.numerical_literals.size(1)
-            self.emb_num_lit = Gate(self.hidden_dim + self.n_num_lit,
-                                    self.hidden_dim)
+            self.emb_num_lit = Gate(self.entity_dim + self.n_num_lit,
+                                    self.entity_dim)
 
         if model_name == 'pRotatE':
             self.modulus = nn.Parameter(torch.Tensor([[0.5 * self.embedding_range.item()]]))
