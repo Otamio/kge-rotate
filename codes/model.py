@@ -122,7 +122,7 @@ class KGEModel(nn.Module):
             batch_size, negative_sample_size = sample.size(0), 1
 
             head = torch.index_select(
-                self.embedding,
+                embedding,
                 dim=0,
                 index=sample[:, 0]
             ).unsqueeze(1)
@@ -134,7 +134,7 @@ class KGEModel(nn.Module):
             ).unsqueeze(1)
 
             tail = torch.index_select(
-                self.embedding,
+                embedding,
                 dim=0,
                 index=sample[:, 2]
             ).unsqueeze(1)
@@ -144,7 +144,7 @@ class KGEModel(nn.Module):
             batch_size, negative_sample_size = head_part.size(0), head_part.size(1)
 
             head = torch.index_select(
-                self.embedding,
+                embedding,
                 dim=0,
                 index=head_part.view(-1)
             ).view(batch_size, negative_sample_size, -1)
@@ -156,7 +156,7 @@ class KGEModel(nn.Module):
             ).unsqueeze(1)
 
             tail = torch.index_select(
-                self.embedding,
+                embedding,
                 dim=0,
                 index=tail_part[:, 2]
             ).unsqueeze(1)
@@ -166,7 +166,7 @@ class KGEModel(nn.Module):
             batch_size, negative_sample_size = tail_part.size(0), tail_part.size(1)
 
             head = torch.index_select(
-                self.embedding,
+                embedding,
                 dim=0,
                 index=head_part[:, 0]
             ).unsqueeze(1)
@@ -178,7 +178,7 @@ class KGEModel(nn.Module):
             ).unsqueeze(1)
 
             tail = torch.index_select(
-                self.embedding,
+                embedding,
                 dim=0,
                 index=tail_part.view(-1)
             ).view(batch_size, negative_sample_size, -1)
