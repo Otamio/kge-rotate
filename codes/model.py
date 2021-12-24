@@ -24,7 +24,7 @@ class Gate(nn.Module):
     def __init__(self,
                  input_size,
                  output_size,
-                 gate_activation=nn.functional.sigmoid):
+                 gate_activation=torch.sigmoid):
 
         super(Gate, self).__init__()
         self.output_size = output_size
