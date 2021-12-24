@@ -236,8 +236,8 @@ class KGEModel(nn.Module):
             'ComplEx': self.ComplEx,
             'RotatE': self.RotatE,
             'pRotatE': self.pRotatE,
-            'TransE_Literal': self.TransE_Literal,
-            'RotatE_Literal': self.RotatE_Literal
+            'TransE_Gate': self.TransE_Gate,
+            'RotatE_Gate': self.RotatE_Gate
         }
 
         if self.model_name in model_func:
@@ -256,7 +256,7 @@ class KGEModel(nn.Module):
         score = self.gamma.item() - torch.norm(score, p=1, dim=2)
         return score
 
-    def TransE_Literal(self, head, relation, tail, mode, head_literal, tail_literal):
+    def TransE_Gate(self, head, relation, tail, mode, head_literal, tail_literal):
         head = self.emb_num_lit(head, head_literal)
         tail = self.emb_num_lit(tail, tail_literal)
         return self.TransE(head, relation, tail, mode, None, None)
@@ -317,7 +317,7 @@ class KGEModel(nn.Module):
         score = self.gamma.item() - score.sum(dim=2)
         return score
 
-    def RotatE_Literal(self, head, relation, tail, mode, head_literal, tail_literal):
+    def RotatE_Gate(self, head, relation, tail, mode, head_literal, tail_literal):
         head = self.emb_num_lit(head, head_literal)
         tail = self.emb_num_lit(tail, tail_literal)
         return self.RotatE(head, relation, tail, mode, None, None)
