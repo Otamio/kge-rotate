@@ -257,8 +257,11 @@ class KGEModel(nn.Module):
         return score
 
     def TransE_Gate(self, head, relation, tail, mode, head_literal, tail_literal):
-        head = self.emb_num_lit(head, head_literal)
-        tail = self.emb_num_lit(tail, tail_literal)
+        head_shape, tail_shape = head.shape, tail.shape
+        head = self.emb_num_lit(head.view(-1, self.entity_dim),
+                                head_literal.view(-1, self.n_num_lit)).view(head_shape)
+        tail = self.emb_num_lit(tail.view(-1, self.entity_dim),
+                                tail_literal.view(-1, self.n_num_lit)).view(tail_shape)
         return self.TransE(head, relation, tail, mode, None, None)
 
     def DistMult(self, head, relation, tail, mode, head_literal, tail_literal):
