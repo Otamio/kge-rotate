@@ -86,8 +86,8 @@ class KGEModel(nn.Module):
         if numerical_literals is not None:
             self.numerical_literals = torch.autograd.Variable(torch.from_numpy(numerical_literals))
             self.n_num_lit = self.numerical_literals.size(1)
-            self.emb_num_lit = Gate(self.entity_dim + self.n_num_lit,
-                                    self.entity_dim)
+            self.gate = Gate(self.entity_dim + self.n_num_lit, self.entity_dim)
+            self.entity_embedding_enriched = None
 
         if model_name == 'pRotatE':
             self.modulus = nn.Parameter(torch.Tensor([[0.5 * self.embedding_range.item()]]))
@@ -113,12 +113,16 @@ class KGEModel(nn.Module):
         Because negative samples and positive samples usually share two elements
         in their triple ((head, relation) or (relation, tail)).
         '''
+        if self.numerical_literals is not None:
+            embedding = self.entity_embedding_enriched
+        else:
+            embedding = self.entity_embedding
 
         if mode == 'single':
             batch_size, negative_sample_size = sample.size(0), 1
 
             head = torch.index_select(
-                self.entity_embedding,
+                self.embedding,
                 dim=0,
                 index=sample[:, 0]
             ).unsqueeze(1)
@@ -130,33 +134,17 @@ class KGEModel(nn.Module):
             ).unsqueeze(1)
 
             tail = torch.index_select(
-                self.entity_embedding,
+                self.embedding,
                 dim=0,
                 index=sample[:, 2]
             ).unsqueeze(1)
-
-            if self.numerical_literals is not None:
-                head_literal = torch.index_select(
-                    self.numerical_literals,
-                    dim=0,
-                    index=sample[:, 0]
-                )
-
-                tail_literal = torch.index_select(
-                    self.numerical_literals,
-                    dim=0,
-                    index=sample[:, 2]
-                )
-            else:
-                head_literal = None
-                tail_literal = None
 
         elif mode == 'head-batch':
             tail_part, head_part = sample
             batch_size, negative_sample_size = head_part.size(0), head_part.size(1)
 
             head = torch.index_select(
-                self.entity_embedding,
+                self.embedding,
                 dim=0,
                 index=head_part.view(-1)
             ).view(batch_size, negative_sample_size, -1)
@@ -168,33 +156,17 @@ class KGEModel(nn.Module):
             ).unsqueeze(1)
 
             tail = torch.index_select(
-                self.entity_embedding,
+                self.embedding,
                 dim=0,
                 index=tail_part[:, 2]
             ).unsqueeze(1)
-
-            if self.numerical_literals is not None:
-                head_literal = torch.index_select(
-                    self.numerical_literals,
-                    dim=0,
-                    index=head_part.view(-1)
-                ).view(batch_size, negative_sample_size, -1)
-
-                tail_literal = torch.index_select(
-                    self.numerical_literals,
-                    dim=0,
-                    index=tail_part[:, 2]
-                ).unsqueeze(1)
-            else:
-                head_literal = None
-                tail_literal = None
 
         elif mode == 'tail-batch':
             head_part, tail_part = sample
             batch_size, negative_sample_size = tail_part.size(0), tail_part.size(1)
 
             head = torch.index_select(
-                self.entity_embedding,
+                self.embedding,
                 dim=0,
                 index=head_part[:, 0]
             ).unsqueeze(1)
@@ -206,26 +178,10 @@ class KGEModel(nn.Module):
             ).unsqueeze(1)
 
             tail = torch.index_select(
-                self.entity_embedding,
+                self.embedding,
                 dim=0,
                 index=tail_part.view(-1)
             ).view(batch_size, negative_sample_size, -1)
-
-            if self.numerical_literals is not None:
-                head_literal = torch.index_select(
-                    self.numerical_literals,
-                    dim=0,
-                    index=head_part[:, 0]
-                ).unsqueeze(1)
-
-                tail_literal = torch.index_select(
-                    self.numerical_literals,
-                    dim=0,
-                    index=tail_part.view(-1)
-                ).view(batch_size, negative_sample_size, -1)
-            else:
-                head_literal = None
-                tail_literal = None
 
         else:
             raise ValueError('mode %s not supported' % mode)
@@ -241,13 +197,18 @@ class KGEModel(nn.Module):
         }
 
         if self.model_name in model_func:
-            score = model_func[self.model_name](head, relation, tail, mode, head_literal, tail_literal)
+            score = model_func[self.model_name](head, relation, tail, mode)
         else:
             raise ValueError('model %s not supported' % self.model_name)
 
         return score
 
-    def TransE(self, head, relation, tail, mode, head_literal, tail_literal):
+    def enrich_embedding(self):
+        if self.numerical_literals:
+            self.entity_embedding_enriched = self.embed_num_lit(self.entity_embedding,
+                                                                self.numerical_literals)
+
+    def TransE(self, head, relation, tail, mode):
         if mode == 'head-batch':
             score = head + (relation - tail)
         else:
@@ -256,15 +217,10 @@ class KGEModel(nn.Module):
         score = self.gamma.item() - torch.norm(score, p=1, dim=2)
         return score
 
-    def TransE_Gate(self, head, relation, tail, mode, head_literal, tail_literal):
-        head_shape, tail_shape = head.shape, tail.shape
-        head = self.emb_num_lit(head.view(-1, self.entity_dim),
-                                head_literal.view(-1, self.n_num_lit)).view(head_shape)
-        tail = self.emb_num_lit(tail.view(-1, self.entity_dim),
-                                tail_literal.view(-1, self.n_num_lit)).view(tail_shape)
+    def TransE_Gate(self, head, relation, tail, mode):
         return self.TransE(head, relation, tail, mode, None, None)
 
-    def DistMult(self, head, relation, tail, mode, head_literal, tail_literal):
+    def DistMult(self, head, relation, tail, mode):
         if mode == 'head-batch':
             score = head * (relation * tail)
         else:
@@ -273,7 +229,7 @@ class KGEModel(nn.Module):
         score = score.sum(dim=2)
         return score
 
-    def ComplEx(self, head, relation, tail, mode, head_literal, tail_literal):
+    def ComplEx(self, head, relation, tail, mode):
         re_head, im_head = torch.chunk(head, 2, dim=2)
         re_relation, im_relation = torch.chunk(relation, 2, dim=2)
         re_tail, im_tail = torch.chunk(tail, 2, dim=2)
@@ -290,7 +246,7 @@ class KGEModel(nn.Module):
         score = score.sum(dim=2)
         return score
 
-    def RotatE(self, head, relation, tail, mode, head_literal, tail_literal):
+    def RotatE(self, head, relation, tail, mode):
         pi = 3.14159265358979323846
 
         re_head, im_head = torch.chunk(head, 2, dim=2)
@@ -320,15 +276,10 @@ class KGEModel(nn.Module):
         score = self.gamma.item() - score.sum(dim=2)
         return score
 
-    def RotatE_Gate(self, head, relation, tail, mode, head_literal, tail_literal):
-        head_shape, tail_shape = head.shape, tail.shape
-        head = self.emb_num_lit(head.view(-1, self.entity_dim),
-                                head_literal.view(-1, self.n_num_lit)).view(head_shape)
-        tail = self.emb_num_lit(tail.view(-1, self.entity_dim),
-                                tail_literal.view(-1, self.n_num_lit)).view(tail_shape)
+    def RotatE_Gate(self, head, relation, tail, mode):
         return self.RotatE(head, relation, tail, mode, None, None)
 
-    def pRotatE(self, head, relation, tail, mode, head_literal, tail_literal):
+    def pRotatE(self, head, relation, tail, mode):
         pi = 3.14159262358979323846
 
         # Make phases of entities and relations uniformly distributed in [-pi, pi]
@@ -355,6 +306,8 @@ class KGEModel(nn.Module):
         '''
 
         model.train()
+
+        model.enrich_embedding()
 
         optimizer.zero_grad()
 
