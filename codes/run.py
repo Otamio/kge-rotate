@@ -352,6 +352,7 @@ def main(args):
             if args.do_valid and step % args.valid_steps == 0:
 
                 logging.info('Evaluating on Valid Dataset...')
+                kge_model.enrich_embedding()  # Compute Enriched Embedding before evaluation
                 metrics = kge_model.test_step(kge_model, valid_triples, all_true_triples, args)
                 log_metrics('Valid', step, metrics)
 
