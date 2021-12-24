@@ -19,6 +19,31 @@ from torch.utils.data import DataLoader
 from dataloader import TestDataset
 
 
+class Gate(nn.Module):
+
+    def __init__(self,
+                 input_size,
+                 output_size,
+                 gate_activation=nn.functional.sigmoid):
+
+        super(Gate, self).__init__()
+        self.output_size = output_size
+
+        self.gate_activation = gate_activation
+        self.g = nn.Linear(input_size, output_size)
+        self.g1 = nn.Linear(output_size, output_size, bias=False)
+        self.g2 = nn.Linear(input_size-output_size, output_size, bias=False)
+        self.gate_bias = nn.Parameter(torch.zeros(output_size))
+
+    def forward(self, x_ent, x_lit):
+        x = torch.cat([x_ent, x_lit], 1)
+        g_embedded = F.tanh(self.g(x))
+        gate = self.gate_activation(self.g1(x_ent) + self.g2(x_lit) + self.gate_bias)
+        output = (1-gate) * x_ent + gate * g_embedded
+
+        return output
+
+
 class KGEModel(nn.Module):
     def __init__(self, model_name, nentity, nrelation, hidden_dim, gamma,
                  double_entity_embedding=False, double_relation_embedding=False,
@@ -61,14 +86,15 @@ class KGEModel(nn.Module):
         if numerical_literals is not None:
             self.numerical_literals = torch.autograd.Variable(torch.from_numpy(numerical_literals))
             self.n_num_lit = self.numerical_literals.size(1)
-            self.emb_num_lit = torch.nn.Linear(self.hidden_dim + self.n_num_lit,
-                                               self.hidden_dim)
+            self.emb_num_lit = Gate(self.hidden_dim + self.n_num_lit,
+                                    self.hidden_dim)
 
         if model_name == 'pRotatE':
             self.modulus = nn.Parameter(torch.Tensor([[0.5 * self.embedding_range.item()]]))
 
         # Do not forget to modify this line when you add a new model in the "forward" function
-        if model_name not in ['TransE', 'DistMult', 'ComplEx', 'RotatE', 'pRotatE']:
+        if model_name not in ['TransE', 'DistMult', 'ComplEx', 'RotatE', 'pRotatE',
+                              'TransE_Gate', 'RotatE_Gate']:
             raise ValueError('model %s not supported' % model_name)
 
         if model_name == 'RotatE' and (not double_entity_embedding or double_relation_embedding):
@@ -109,6 +135,22 @@ class KGEModel(nn.Module):
                 index=sample[:, 2]
             ).unsqueeze(1)
 
+            if self.numerical_literals is not None:
+                head_literal = torch.index_select(
+                    self.numerical_literals,
+                    dim=0,
+                    index=sample[:, 0]
+                )
+
+                tail_literal = torch.index_select(
+                    self.numerical_literals,
+                    dim=0,
+                    index=sample[:, 2]
+                )
+            else:
+                head_literal = None
+                tail_literal = None
+
         elif mode == 'head-batch':
             tail_part, head_part = sample
             batch_size, negative_sample_size = head_part.size(0), head_part.size(1)
@@ -130,6 +172,22 @@ class KGEModel(nn.Module):
                 dim=0,
                 index=tail_part[:, 2]
             ).unsqueeze(1)
+
+            if self.numerical_literals is not None:
+                head_literal = torch.index_select(
+                    self.numerical_literals,
+                    dim=0,
+                    index=head_part.view(-1)
+                ).view(batch_size, negative_sample_size, -1)
+
+                tail_literal = torch.index_select(
+                    self.numerical_literals,
+                    dim=0,
+                    index=tail_part[:, 2]
+                ).unsqueeze(1)
+            else:
+                head_literal = None
+                tail_literal = None
 
         elif mode == 'tail-batch':
             head_part, tail_part = sample
@@ -153,6 +211,22 @@ class KGEModel(nn.Module):
                 index=tail_part.view(-1)
             ).view(batch_size, negative_sample_size, -1)
 
+            if self.numerical_literals is not None:
+                head_literal = torch.index_select(
+                    self.numerical_literals,
+                    dim=0,
+                    index=head_part[:, 0]
+                ).unsqueeze(1)
+
+                tail_literal = torch.index_select(
+                    self.numerical_literals,
+                    dim=0,
+                    index=tail_part.view(-1)
+                ).view(batch_size, negative_sample_size, -1)
+            else:
+                head_literal = None
+                tail_literal = None
+
         else:
             raise ValueError('mode %s not supported' % mode)
 
@@ -161,17 +235,19 @@ class KGEModel(nn.Module):
             'DistMult': self.DistMult,
             'ComplEx': self.ComplEx,
             'RotatE': self.RotatE,
-            'pRotatE': self.pRotatE
+            'pRotatE': self.pRotatE,
+            'TransE_Literal': self.TransE_Literal,
+            'RotatE_Literal': self.RotatE_Literal
         }
 
         if self.model_name in model_func:
-            score = model_func[self.model_name](head, relation, tail, mode)
+            score = model_func[self.model_name](head, relation, tail, mode, head_literal, tail_literal)
         else:
             raise ValueError('model %s not supported' % self.model_name)
 
         return score
 
-    def TransE(self, head, relation, tail, mode):
+    def TransE(self, head, relation, tail, mode, head_literal, tail_literal):
         if mode == 'head-batch':
             score = head + (relation - tail)
         else:
@@ -180,7 +256,12 @@ class KGEModel(nn.Module):
         score = self.gamma.item() - torch.norm(score, p=1, dim=2)
         return score
 
-    def DistMult(self, head, relation, tail, mode):
+    def TransE_Literal(self, head, relation, tail, mode, head_literal, tail_literal):
+        head = self.emb_num_lit(head, head_literal)
+        tail = self.emb_num_lit(tail, tail_literal)
+        return self.TransE(head, relation, tail, mode, None, None)
+
+    def DistMult(self, head, relation, tail, mode, head_literal, tail_literal):
         if mode == 'head-batch':
             score = head * (relation * tail)
         else:
@@ -189,7 +270,7 @@ class KGEModel(nn.Module):
         score = score.sum(dim=2)
         return score
 
-    def ComplEx(self, head, relation, tail, mode):
+    def ComplEx(self, head, relation, tail, mode, head_literal, tail_literal):
         re_head, im_head = torch.chunk(head, 2, dim=2)
         re_relation, im_relation = torch.chunk(relation, 2, dim=2)
         re_tail, im_tail = torch.chunk(tail, 2, dim=2)
@@ -206,7 +287,7 @@ class KGEModel(nn.Module):
         score = score.sum(dim=2)
         return score
 
-    def RotatE(self, head, relation, tail, mode):
+    def RotatE(self, head, relation, tail, mode, head_literal, tail_literal):
         pi = 3.14159265358979323846
 
         re_head, im_head = torch.chunk(head, 2, dim=2)
@@ -236,7 +317,12 @@ class KGEModel(nn.Module):
         score = self.gamma.item() - score.sum(dim=2)
         return score
 
-    def pRotatE(self, head, relation, tail, mode):
+    def RotatE_Literal(self, head, relation, tail, mode, head_literal, tail_literal):
+        head = self.emb_num_lit(head, head_literal)
+        tail = self.emb_num_lit(tail, tail_literal)
+        return self.RotatE(head, relation, tail, mode, None, None)
+
+    def pRotatE(self, head, relation, tail, mode, head_literal, tail_literal):
         pi = 3.14159262358979323846
 
         # Make phases of entities and relations uniformly distributed in [-pi, pi]
