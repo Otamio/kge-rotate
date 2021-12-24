@@ -320,8 +320,9 @@ class KGEModel(nn.Module):
     def RotatE_Gate(self, head, relation, tail, mode, head_literal, tail_literal):
         head = self.emb_num_lit(head.view(-1, self.entity_dim),
                                 head_literal.view(-1, self.n_num_lit)).view(-1, 1, self.entity_dim)
+        count_negatives = tail.shape[1]
         tail = self.emb_num_lit(tail.view(-1, self.entity_dim),
-                                tail_literal.view(-1, self.n_num_lit)).view(-1, 1, self.entity_dim)
+                                tail_literal.view(-1, self.n_num_lit)).view(-1, count_negatives, self.entity_dim)
         return self.RotatE(head, relation, tail, mode, None, None)
 
     def pRotatE(self, head, relation, tail, mode, head_literal, tail_literal):
