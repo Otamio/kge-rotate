@@ -12,7 +12,7 @@ if __name__ == "__main__":
     model = sys.argv[1].lower()
     dataset = sys.argv[2]
     gpu = sys.argv[3]
-    options = sys.argv[4] if len(sys.argv > 4) else ""
+    options = sys.argv[4] if len(sys.argv) > 4 else ""
 
     if model == "rotate":
         command = f"python codes/create_mapping.py data/{dataset} && " \
