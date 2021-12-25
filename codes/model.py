@@ -250,7 +250,7 @@ class KGEModel(nn.Module):
         if self.model_name in model_func:
             score = model_func[self.model_name](head, relation, tail, mode)
         elif self.model_name in kbln_func:
-            score = model_func[self.model_name](head, relation, tail, mode, head_literal, tail_literal)
+            score = kbln_func[self.model_name](head, relation, tail, mode, head_literal, tail_literal)
         else:
             raise ValueError('model %s not supported' % self.model_name)
 
