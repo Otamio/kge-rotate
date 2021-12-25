@@ -92,6 +92,7 @@ class KGEModel(nn.Module):
         elif 'KBLN' in model_name:
             assert(numerical_literals is not None)
             self.numerical_literals = torch.autograd.Variable(torch.from_numpy(numerical_literals))
+            self.n_num_lit = self.numerical_literals.size(1)
             self.c = torch.autograd.Variable(torch.FloatTensor(c))
             self.var = torch.autograd.Variable(torch.FloatTensor(var))
             self.nf_weights = nn.Embedding(nrelation, self.n_num_lit)
