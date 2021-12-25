@@ -257,7 +257,7 @@ class KGEModel(nn.Module):
         return score
 
     def enrich_embedding(self):
-        if self.numerical_literals is not None:
+        if self.numerical_literals is not None and 'Gate' in self.model_name:
             self.entity_embedding_enriched = self.gate(self.entity_embedding,
                                                        self.numerical_literals)
 
