@@ -47,7 +47,7 @@ class Gate(nn.Module):
 class KGEModel(nn.Module):
     def __init__(self, model_name, nentity, nrelation, hidden_dim, gamma,
                  double_entity_embedding=False, double_relation_embedding=False,
-                 numerical_literals=None):
+                 numerical_literals=None, c=None, var=None):
         super(KGEModel, self).__init__()
         self.model_name = model_name
         self.nentity = nentity
@@ -92,13 +92,16 @@ class KGEModel(nn.Module):
         elif 'KBLN' in model_name:
             assert(numerical_literals is not None)
             self.numerical_literals = torch.autograd.Variable(torch.from_numpy(numerical_literals))
+            self.c = torch.autograd.Variable(torch.FloatTensor(c))
+            self.var = torch.autograd.Variable(torch.FloatTensor(var))
+            self.nf_weights = nn.Embedding(nrelation, self.n_num_lit)
 
         if model_name == 'pRotatE':
             self.modulus = nn.Parameter(torch.Tensor([[0.5 * self.embedding_range.item()]]))
 
         # Do not forget to modify this line when you add a new model in the "forward" function
         if model_name not in ['TransE', 'DistMult', 'ComplEx', 'RotatE', 'pRotatE',
-                              'TransE_Gate', 'RotatE_Gate']:
+                              'TransE_Gate', 'RotatE_Gate', 'TransE_KBLN', 'RotatE_KBLN']:
             raise ValueError('model %s not supported' % model_name)
 
         if model_name == 'RotatE' and (not double_entity_embedding or double_relation_embedding):
@@ -143,6 +146,19 @@ class KGEModel(nn.Module):
                 index=sample[:, 2]
             ).unsqueeze(1)
 
+            if 'KBLN' in self.model_name:
+                head_literal = torch.index_select(
+                    self.numerical_literals,
+                    dim=0,
+                    index=sample[:, 0]
+                )
+
+                tail_literal = torch.index_select(
+                    self.numerical_literals,
+                    dim=0,
+                    index=sample[:, 2]
+                )
+
         elif mode == 'head-batch':
             tail_part, head_part = sample
             batch_size, negative_sample_size = head_part.size(0), head_part.size(1)
@@ -164,6 +180,19 @@ class KGEModel(nn.Module):
                 dim=0,
                 index=tail_part[:, 2]
             ).unsqueeze(1)
+
+            if 'KBLN' in self.model_name:
+                head_literal = torch.index_select(
+                    self.numerical_literals,
+                    dim=0,
+                    index=head_part.view(-1)
+                )
+
+                tail_literal = torch.index_select(
+                    self.numerical_literals,
+                    dim=0,
+                    index=tail_part[:, 2]
+                )
 
         elif mode == 'tail-batch':
             head_part, tail_part = sample
@@ -187,6 +216,19 @@ class KGEModel(nn.Module):
                 index=tail_part.view(-1)
             ).view(batch_size, negative_sample_size, -1)
 
+            if 'KBLN' in self.model_name:
+                head_literal = torch.index_select(
+                    self.numerical_literals,
+                    dim=0,
+                    index=head_part[:, 0]
+                )
+
+                tail_literal = torch.index_select(
+                    self.numerical_literals,
+                    dim=0,
+                    index=tail_part.view(-1)
+                )
+
         else:
             raise ValueError('mode %s not supported' % mode)
 
@@ -200,8 +242,14 @@ class KGEModel(nn.Module):
             'RotatE_Gate': self.RotatE_Gate
         }
 
+        kbln_func = {
+            'TransE_KBLN': self.TransE_KBLN
+        }
+
         if self.model_name in model_func:
             score = model_func[self.model_name](head, relation, tail, mode)
+        elif self.model_name in kbln_func:
+            score = model_func[self.model_name](head, relation, tail, mode, head_literal, tail_literal)
         else:
             raise ValueError('model %s not supported' % self.model_name)
 
@@ -223,6 +271,17 @@ class KGEModel(nn.Module):
 
     def TransE_Gate(self, head, relation, tail, mode):
         return self.TransE(head, relation, tail, mode)
+
+    def TransE_KBLN(self, head, relation, tail, mode, head_literal, tail_literal):
+        score_l = self.TransE(head, relation, tail, mode)
+        n = head_literal.unsqueeze(1).repeat(1, tail_literal.shape[1], 1) - tail_literal
+        phi = self.rbf(n)
+        w_nf = self.nf_weights(relation)
+        score_n = torch.bmm(phi, w_nf.transpose(1, 2)).squeeze()
+        return torch.sigmoid(score_l + score_n)
+
+    def rbf(self, n):
+        return torch.exp(-(n - self.c)**2 / self.var)
 
     def DistMult(self, head, relation, tail, mode):
         if mode == 'head-batch':

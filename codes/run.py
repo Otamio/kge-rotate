@@ -199,12 +199,26 @@ def main(args):
 
     # Load the literals when using literal or kbln
     if args.use_literal or args.use_kbln:
-        numerical_literals = np.load(f'{args.data_path}/numerical_literals.npy', allow_pickle=True)
+        if args.use_literal:
+            numerical_literals = np.load(f'{args.data_path}/numerical_literals.npy', allow_pickle=True)
+            c = None
+            var = None
+
+        if args.use_kbln:
+            numerical_literals = np.load(f'{args.data_path}/numerical_literals.npy', allow_pickle=True)
+            X_train = np.load(f'{args.data_path}/train.npy')
+            h, t = X_train[:, 0], X_train[:, 2]
+            n = numerical_literals[h, :] - numerical_literals[t, :]
+            c = np.mean(n, axis=0).astype('float32')
+            var = np.var(n, axis=0) + 1e-6
+
         # Normalize numerical literals
         max_lit, min_lit = np.max(numerical_literals, axis=0), np.min(numerical_literals, axis=0)
         numerical_literals = (numerical_literals - min_lit) / (max_lit - min_lit + 1e-8)
     else:
         numerical_literals = None
+        c = None
+        var = None
 
     # Read regions for Countries S* datasets
     if args.countries:
@@ -244,7 +258,8 @@ def main(args):
         gamma=args.gamma,
         double_entity_embedding=args.double_entity_embedding,
         double_relation_embedding=args.double_relation_embedding,
-        numerical_literals=numerical_literals
+        numerical_literals=numerical_literals,
+        c=c, var=var
     )
 
     logging.info('Model Parameter Configuration:')
@@ -253,9 +268,14 @@ def main(args):
 
     if args.cuda:
         kge_model = kge_model.cuda()
-        if kge_model.numerical_literals is not None:
+        if args.use_literal:
             kge_model.numerical_literals = kge_model.numerical_literals.cuda()
             kge_model.gate = kge_model.gate.cuda()
+        elif args.use_kbln:
+            kge_model.numerical_literals = kge_model.numerical_literals.cuda()
+            kge_model.c = kge_model.c.cuda()
+            kge_model.var = kge_model.var.cuda()
+            kge_model.nf_weights = kge_model.nf_weights.cuda()
 
     if args.do_train:
         # Set training dataloader iterator
