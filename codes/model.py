@@ -83,11 +83,15 @@ class KGEModel(nn.Module):
         )
 
         # Load numeric literals if necessary
-        if numerical_literals is not None:
+        if 'Gate' in model_name:
+            assert(numerical_literals is not None)
             self.numerical_literals = torch.autograd.Variable(torch.from_numpy(numerical_literals))
             self.n_num_lit = self.numerical_literals.size(1)
             self.gate = Gate(self.entity_dim + self.n_num_lit, self.entity_dim)
             self.entity_embedding_enriched = None
+        elif 'KBLN' in model_name:
+            assert(numerical_literals is not None)
+            self.numerical_literals = torch.autograd.Variable(torch.from_numpy(numerical_literals))
 
         if model_name == 'pRotatE':
             self.modulus = nn.Parameter(torch.Tensor([[0.5 * self.embedding_range.item()]]))
@@ -113,10 +117,10 @@ class KGEModel(nn.Module):
         Because negative samples and positive samples usually share two elements
         in their triple ((head, relation) or (relation, tail)).
         '''
-        if self.numerical_literals is not None:
-            embedding = self.entity_embedding_enriched
+        if self.numerical_literals is not None and 'Gate' in self.model_name:
+            embedding = self.entity_embedding_enriched  # If model_Gate, then use enriched embedding
         else:
-            embedding = self.entity_embedding
+            embedding = self.entity_embedding  # Otherwise, use normal embedding
 
         if mode == 'single':
             batch_size, negative_sample_size = sample.size(0), 1

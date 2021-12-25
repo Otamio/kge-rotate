@@ -68,7 +68,9 @@ def parse_args(args=None):
 
     parser.add_argument('--nentity', type=int, default=0, help='DO NOT MANUALLY SET')
     parser.add_argument('--nrelation', type=int, default=0, help='DO NOT MANUALLY SET')
+
     parser.add_argument('--use_literal', action='store_true')
+    parser.add_argument('--use_kbln', action='store_true')
 
     return parser.parse_args(args)
 
@@ -195,7 +197,8 @@ def main(args):
             rid, relation = line.strip().split('\t')
             relation2id[relation] = int(rid)
 
-    if args.use_literal:
+    # Load the literals when using literal or kbln
+    if args.use_literal or args.use_kbln:
         numerical_literals = np.load(f'{args.data_path}/numerical_literals.npy', allow_pickle=True)
         # Normalize numerical literals
         max_lit, min_lit = np.max(numerical_literals, axis=0), np.min(numerical_literals, axis=0)
