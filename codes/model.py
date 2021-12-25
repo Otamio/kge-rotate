@@ -96,6 +96,8 @@ class KGEModel(nn.Module):
             self.c = torch.autograd.Variable(torch.FloatTensor(c))
             self.var = torch.autograd.Variable(torch.FloatTensor(var))
             self.nf_weights = nn.Embedding(nrelation, self.n_num_lit)
+        else:
+            self.numerical_literals = None
 
         if model_name == 'pRotatE':
             self.modulus = nn.Parameter(torch.Tensor([[0.5 * self.embedding_range.item()]]))
