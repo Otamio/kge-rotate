@@ -1,12 +1,18 @@
 import os
-import sys
+import argparse
 import numpy as np
 import pandas as pd
 
 
+parser = argparse.ArgumentParser(
+    description="Preprocess literals"
+)
+parser.add_argument('--dataset', default='fb15k237', help='Please provide a dataset path')
+
 if __name__ == "__main__":
 
-    data_path = sys.argv[1]
+    args = parser.parse_args()
+    data_path = args.dataset
 
     with open(os.path.join(data_path, 'entities.dict')) as fin:
         ent2idx = dict()

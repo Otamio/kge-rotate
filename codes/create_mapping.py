@@ -1,8 +1,14 @@
-import sys
+import argparse
+
+parser = argparse.ArgumentParser(
+    description="Mapping Creator"
+)
+parser.add_argument('--dataset', default='fb15k237', help='Please provide a dataset path')
 
 if __name__ == "__main__":
 
-    dataset_path = sys.argv[1]
+    args = parser.parse_args()
+    dataset_path = args.dataset
     entities = set()
     relations = set()
 
