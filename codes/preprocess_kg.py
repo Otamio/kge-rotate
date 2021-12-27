@@ -20,9 +20,9 @@ def load_data(file_path, ent2idx, rel2idx):
     X = np.zeros([M, 3], dtype=int)
 
     for i, row in tqdm.tqdm(df.iterrows()):
-        X[i, 0] = ent2idx[row[0].lower()]
-        X[i, 1] = rel2idx[row[1].lower()]
-        X[i, 2] = ent2idx[row[2].lower()]
+        X[i, 0] = ent2idx[row[0]]
+        X[i, 1] = rel2idx[row[1]]
+        X[i, 2] = ent2idx[row[2]]
 
     return X
 
