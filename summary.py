@@ -34,13 +34,12 @@ def main():
             valid, test = {}, {}
             for line in fd:
                 line = line.strip().split("INFO")[1].strip()
-                if line.startswith("Valid MRR at step"):
-                    epoc = int(line.split(':')[0].split()[-1])
                 if len(test) > 0 and line.startswith("Valid MRR at step"):
                     result.append(EpocResult(epoc,
                                              convert_result(valid),
                                              convert_result(test)))
                     valid, test = {}, {}
+                    epoc = int(line.split(':')[0].split()[-1])
                 if line.startswith("Valid HITS@10 at step"):
                     valid["hits@10"] = float(line.split(':')[1])
                 elif line.startswith("Valid HITS@3 at step"):
@@ -66,7 +65,8 @@ def main():
                                          convert_result(test)))
             except KeyError:
                 pass
-        results[fname.split('/')[1].split('.')[0].strip()] = result
+        exp_name = fname.split('/')[1].split('.')[0].strip()
+        results[exp_name] = result
 
     for exp, res in sorted(results.items()):
         if len(res) == 0:
