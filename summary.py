@@ -1,6 +1,12 @@
+import argparse
 import glob
 from collections import namedtuple
+import pandas as pd
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--dataset", type=str, default='')
+parser.add_argument("--model", type=str, default='')
+parser.add_argument("--mode", type=str, default='')
 Result = namedtuple("Result", "mr mrr hits_1 hits_3 hits_10")
 
 
@@ -25,9 +31,10 @@ def convert_result(dic):
 
 def main():
 
+    args = parser.parse_args()
     results = {}
 
-    for fname in glob.iglob("out/*/train.log"):
+    for fname in glob.iglob(f"out/*{args.dataset}*{args.mode}*{args.model}*/train.log"):
         with open(fname) as fd:
             epoc = 0
             result = []
@@ -63,17 +70,23 @@ def main():
             try:
                 result.append(EpocResult(epoc, convert_result(valid),
                                          convert_result(test)))
-            except KeyError:
+            except KeyError as e:
+                print('Running:', fname, e)
                 pass
         exp_name = fname.split('/')[1].split('.')[0].strip()
         results[exp_name] = result
 
+    frame = []
     for exp, res in sorted(results.items()):
-        if len(res) == 0:
-            continue
         best = max(res)
-        print(exp)
-        print('\t', best.epoc, '\t', best.test.mrr, '\t', best.test.hits_1, '\t', best.test.hits_10)
+        frame.append({
+            "experiment": exp,
+            "best_epoc": best.epoc // 100,
+            "mrr": round(best.test.mrr, 3),
+            "hits@1": round(best.test.hits_1, 3),
+            "hits@10": round(best.test.hits_10, 3)
+        })
+    print(pd.DataFrame(frame))
 
 
 if __name__ == "__main__":
