@@ -28,5 +28,6 @@ if __name__ == "__main__":
                      f"-lr 0.0001 --max_steps 150000 --valid_steps 5000 -save numeric/{dataset}_rotate " \
                      "--test_batch_size 16 -de --use_stopper --save_best"
 
+    subprocess.run(f"python codes/create_mapping.py --dataset numeric/{dataset}", shell=True)
     subprocess.run(command_transe, shell=True)
     subprocess.run(command_rotate, shell=True)
