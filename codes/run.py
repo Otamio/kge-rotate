@@ -8,7 +8,6 @@ import argparse
 import json
 import logging
 import os
-import random
 
 import numpy as np
 import torch
@@ -71,6 +70,13 @@ def parse_args(args=None):
 
     parser.add_argument('--use_literal', action='store_true')
     parser.add_argument('--use_kbln', action='store_true')
+
+    parser.add_argument("--input", type=str, default="data", help="input path")
+    parser.add_argument("--output", type=str, default="out", help="output path")
+    parser.add_argument("--use_stopper", action='store_true', help='Use an early stopper')
+    parser.add_argument("--save_best", action='store_true', help='Save best model')
+    parser.add_argument("--grace_period", type=int, default=30, nargs="?", help="Grace Period before evaluation")
+    parser.add_argument("--patience", type=int, default=5, nargs="?", help="Early Stopper")
 
     return parser.parse_args(args)
 
@@ -340,6 +346,7 @@ def main(args):
         logging.info('learning_rate = %d' % current_learning_rate)
 
         training_logs = []
+        mrrs = []
 
         # Training Loop
         for step in range(init_step, args.max_steps):
@@ -383,6 +390,15 @@ def main(args):
                     logging.info('Evaluating on Test Dataset...')
                     metrics = kge_model.test_step(kge_model, test_triples, all_true_triples, args)
                     log_metrics('Test', step, metrics)
+
+                    # Check mrrs
+                    mrrs.append(metrics['MRR'])
+                    patience = patience - 1 if mrrs[-1] != max(mrrs) else args.patience
+                    if args.save_best and mrrs[-1] == max(mrrs):
+                        torch.save(kge_model.state_dict(), f'{args.save_path}/{args.model}.model')
+                    if args.use_stopper and patience <= 0:
+                        logging.info(f"Early stop since no further improvement is made on the validation set")
+                        break
 
         save_variable_list = {
             'step': step,
