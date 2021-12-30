@@ -71,11 +71,8 @@ def parse_args(args=None):
     parser.add_argument('--use_literal', action='store_true')
     parser.add_argument('--use_kbln', action='store_true')
 
-    parser.add_argument("--input", type=str, default="data", help="input path")
-    parser.add_argument("--output", type=str, default="out", help="output path")
     parser.add_argument("--use_stopper", action='store_true', help='Use an early stopper')
     parser.add_argument("--save_best", action='store_true', help='Save best model')
-    parser.add_argument("--grace_period", type=int, default=30, nargs="?", help="Grace Period before evaluation")
     parser.add_argument("--patience", type=int, default=5, nargs="?", help="Early Stopper")
 
     return parser.parse_args(args)
